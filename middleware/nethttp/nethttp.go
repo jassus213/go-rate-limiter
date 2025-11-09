@@ -1,5 +1,5 @@
 // Package nethttp provides middleware for the standard net/http library
-// that enforces rate limiting using github.com/jassus213/go-rate-limitter.
+// that enforces rate limiting using github.com/jassus213/go-rate-limiter.
 //
 // This package allows you to wrap any http.Handler and automatically apply
 // rate limiting based on a Limiter instance (fixed window, token bucket, etc.).
@@ -11,8 +11,8 @@
 //	import (
 //	    "net/http"
 //	    "time"
-//	    ratelimiter "github.com/jassus213/go-rate-limitter"
-//	    "github.com/jassus213/go-rate-limitter/middleware/nethttp"
+//	    ratelimiter "github.com/jassus213/go-rate-limiter"
+//	    "github.com/jassus213/go-rate-limiter/middleware/nethttp"
 //	)
 //
 //	func main() {
@@ -36,7 +36,7 @@ import (
 	"strconv"
 	"time"
 
-	ratelimiter "github.com/jassus213/go-rate-limitter"
+	"github.com/jassus213/go-rate-limiter/ratelimiter"
 )
 
 // Middleware returns a middleware handler for the standard net/http library.

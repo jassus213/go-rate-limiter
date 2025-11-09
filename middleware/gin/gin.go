@@ -1,5 +1,5 @@
 // Package gin provides a Gin middleware adapter for
-// github.com/jassus213/go-rate-limitter.
+// github.com/jassus213/go-rate-limiter.
 //
 // This package allows you to easily integrate rate limiting
 // into your Gin HTTP server using any Limiter implementation
@@ -10,8 +10,8 @@
 //	import (
 //	    "time"
 //	    "github.com/gin-gonic/gin"
-//	    ratelimiter "github.com/jassus213/go-rate-limitter"
-//	    "github.com/jassus213/go-rate-limitter/middleware/gin"
+//	    ratelimiter "github.com/jassus213/go-rate-limiter"
+//	    "github.com/jassus213/go-rate-limiter/middleware/gin"
 //	)
 //
 //	func main() {
@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	ratelimiter "github.com/jassus213/go-rate-limitter"
+	ratelimiter "github.com/jassus213/go-rate-limiter"
 )
 
 // RateLimiter creates a Gin middleware handler that enforces rate limiting.

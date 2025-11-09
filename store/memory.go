@@ -1,4 +1,4 @@
-// Package store provides storage backends for github.com/jassus213/go-rate-limitter.
+// Package store provides storage backends for github.com/jassus213/go-rate-limiter.
 //
 // Currently supported backends:
 //   - MemoryStore: in-memory store for single-instance applications
@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jassus213/go-rate-limitter/ratelimiter"
+	"github.com/jassus213/go-rate-limiter/ratelimiter"
 )
 
 // fixedWindowEntry stores the counter and expiration time for a fixed window key.

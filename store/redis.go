@@ -1,4 +1,4 @@
-// Package store provides storage backends for github.com/jassus213/go-rate-limitter.
+// Package store provides storage backends for github.com/jassus213/go-rate-limiter.
 //
 // Currently supported backends:
 //   - MemoryStore: in-memory store for single-instance applications
@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	ratelimiter2 "github.com/jassus213/go-rate-limitter/ratelimiter"
+	ratelimiter2 "github.com/jassus213/go-rate-limiter/ratelimiter"
 	"github.com/redis/go-redis/v9"
 )
 

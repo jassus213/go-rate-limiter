@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	ginMiddleware "github.com/jassus213/go-rate-limitter/middleware/gin"
-	"github.com/jassus213/go-rate-limitter/ratelimiter"
-	"github.com/jassus213/go-rate-limitter/store"
+	ginMiddleware "github.com/jassus213/go-rate-limiter/middleware/gin"
+	"github.com/jassus213/go-rate-limiter/ratelimiter"
+	"github.com/jassus213/go-rate-limiter/store"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	ratelimiter "github.com/jassus213/go-rate-limitter"
-	stdlogadapter "github.com/jassus213/go-rate-limitter/adapters/log"
-	ginMiddleware "github.com/jassus213/go-rate-limitter/middleware/gin"
-	"github.com/jassus213/go-rate-limitter/store"
+	ratelimiter "github.com/jassus213/go-rate-limiter"
+	stdlogadapter "github.com/jassus213/go-rate-limiter/adapters/log"
+	ginMiddleware "github.com/jassus213/go-rate-limiter/middleware/gin"
+	"github.com/jassus213/go-rate-limiter/store"
 )
 
 func main() {
