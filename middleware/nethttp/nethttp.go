@@ -1,3 +1,34 @@
+// Package nethttp provides middleware for the standard net/http library
+// that enforces rate limiting using github.com/jassus213/go-rate-limitter.
+//
+// This package allows you to wrap any http.Handler and automatically apply
+// rate limiting based on a Limiter instance (fixed window, token bucket, etc.).
+// The middleware sets standard `X-RateLimit-*` headers and supports
+// custom logging and error handling via functional options.
+//
+// Example usage:
+//
+//	import (
+//	    "net/http"
+//	    "time"
+//	    ratelimiter "github.com/jassus213/go-rate-limitter"
+//	    "github.com/jassus213/go-rate-limitter/middleware/nethttp"
+//	)
+//
+//	func main() {
+//	    store := ratelimiter.NewMemoryStore()
+//	    limiter := ratelimiter.NewFixedWindow(store, 100, time.Minute)
+//
+//	    mux := http.NewServeMux()
+//	    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+//	        w.Write([]byte("Hello, world!"))
+//	    })
+//
+//	    // Wrap the mux with rate limiting middleware
+//	    rateLimitMiddleware := nethttp.Middleware(limiter)
+//
+//	    http.ListenAndServe(":8080", rateLimitMiddleware(mux))
+//	}
 package nethttp
 
 import (
@@ -8,20 +39,17 @@ import (
 	ratelimiter "github.com/jassus213/go-rate-limitter"
 )
 
-// Middleware creates a new middleware handler for the standard `net/http` library.
+// Middleware returns a middleware handler for the standard net/http library.
 //
-// It wraps an existing `http.Handler` and checks incoming requests against the provided
-// Limiter instance. On every request, it adds the standard `X-RateLimit-*` headers
-// to the response. The behavior can be customized using functional options.
+// It wraps an existing http.Handler and checks incoming requests against
+// the provided Limiter instance. The middleware adds standard headers:
 //
-// Example:
+//   - X-RateLimit-Limit: the maximum number of requests allowed
+//   - X-RateLimit-Remaining: the number of requests remaining in the current window
+//   - X-RateLimit-Reset: Unix timestamp when the limit will reset
 //
-//	limiter := ratelimiter.NewFixedWindow(store, 100, time.Minute)
-//	mux := http.NewServeMux()
-//	mux.HandleFunc("/", myHandler)
-//
-//	rateLimitMiddleware := nethttp.Middleware(limiter)
-//	http.ListenAndServe(":8080", rateLimitMiddleware(mux))
+// Behavior can be customized using functional options such as WithKeyFunc,
+// WithErrorHandler, or WithLogger.
 func Middleware(limiter ratelimiter.Limiter, options ...ratelimiter.Option) func(http.Handler) http.Handler {
 	cfg := ratelimiter.NewConfig(options...)
 
@@ -29,14 +57,14 @@ func Middleware(limiter ratelimiter.Limiter, options ...ratelimiter.Option) func
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key, err := cfg.KeyFunc(r)
 			if err != nil {
-				cfg.Logger.Errorf("Failed to extract key: %v", err)
+				cfg.Logger.Errorf("[RateLimiter] Failed to extract key: %v", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
 
 			result, err := limiter.Allow(r.Context(), key)
 			if err != nil {
-				cfg.Logger.Errorf("Limiter failed for key '%s': %v", key, err)
+				cfg.Logger.Errorf("[RateLimiter]Limiter failed for key '%s': %v", key, err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
@@ -48,7 +76,7 @@ func Middleware(limiter ratelimiter.Limiter, options ...ratelimiter.Option) func
 
 			if !result.Allowed {
 				cfg.Logger.Debugf(
-					"Request denied for key '%s'. Remaining: %d, Limit: %d",
+					"[RateLimiter] Request denied for key '%s'. Remaining: %d, Limit: %d",
 					key, result.Remaining, result.Limit,
 				)
 				cfg.ErrorHandler(w, r, ratelimiter.ErrorExceeded, result)
@@ -56,7 +84,7 @@ func Middleware(limiter ratelimiter.Limiter, options ...ratelimiter.Option) func
 			}
 
 			cfg.Logger.Debugf(
-				"Request allowed for key '%s'. Remaining: %d, Limit: %d",
+				"[RateLimiter] Request allowed for key '%s'. Remaining: %d, Limit: %d",
 				key, result.Remaining, result.Limit,
 			)
 			next.ServeHTTP(w, r)

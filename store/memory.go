@@ -1,3 +1,17 @@
+// Package store provides storage backends for github.com/jassus213/go-rate-limitter.
+//
+// Currently supported backends:
+//   - MemoryStore: in-memory store for single-instance applications
+//   - RedisStore: Redis-based store for distributed applications (not shown here)
+//
+// Stores implement the ratelimiter.Store interface, providing atomic operations
+// for rate limiting algorithms such as fixed window and token bucket.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	store := store.NewMemory(ctx, time.Minute) // cleanup interval = 1 minute
+//	limiter := ratelimiter.NewFixedWindow(store, 100, time.Minute)
 package store
 
 import (
@@ -5,31 +19,42 @@ import (
 	"sync"
 	"time"
 
-	ratelimiter "github.com/jassus213/go-rate-limitter"
+	"github.com/jassus213/go-rate-limitter/ratelimiter"
 )
 
-// fixedWindowEntry stores the counter value and its expiration time.
+// fixedWindowEntry stores the counter and expiration time for a fixed window key.
 type fixedWindowEntry struct {
 	count     int64
 	expiresAt time.Time
 }
 
-// tokenBucketEntry stores the state for a token bucket.
+// tokenBucketEntry stores the state of a token bucket key.
 type tokenBucketEntry struct {
 	tokens      float64
 	lastUpdated time.Time
 }
 
-// MemoryStore implements the ratelimiter.Store interface by storing data in memory.
-// Its lifecycle is managed by the context provided on creation.
+// MemoryStore is an in-memory implementation of ratelimiter.Store.
+//
+// It supports both fixed window and token bucket algorithms, and optionally
+// runs a background cleanup goroutine to remove stale entries.
+//
+// Note: MemoryStore is suitable for single-instance applications.
 type MemoryStore struct {
 	mu                 sync.Mutex
 	fixedWindowEntries map[string]fixedWindowEntry
 	tokenBucketEntries map[string]tokenBucketEntry
 }
 
-// NewMemory creates a new instance of MemoryStore.
-// It requires a parent context to manage the lifecycle of its background cleanup goroutine.
+// NewMemory creates a new MemoryStore instance.
+//
+// ctx: a parent context used to manage the lifecycle of the background cleanup goroutine.
+// cleanupInterval: interval at which expired entries are removed. Pass 0 to disable cleanup.
+//
+// Example:
+//
+//	ctx := context.Background()
+//	store := store.NewMemory(ctx, time.Minute)
 func NewMemory(ctx context.Context, cleanupInterval time.Duration) ratelimiter.Store {
 	store := &MemoryStore{
 		fixedWindowEntries: make(map[string]fixedWindowEntry),
@@ -43,13 +68,18 @@ func NewMemory(ctx context.Context, cleanupInterval time.Duration) ratelimiter.S
 	return store
 }
 
-// Increment atomically increments the counter for a given key.
+// Increment atomically increases the counter for a given key in the fixed window.
+//
+// Returns the new counter value or an error.
+//
+// Example:
+//
+//	count, err := store.Increment(ctx, "user:123", time.Minute)
 func (s *MemoryStore) Increment(ctx context.Context, key string, window time.Duration) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	e, found := s.fixedWindowEntries[key]
-
 	if found && time.Now().After(e.expiresAt) {
 		found = false
 	}
@@ -67,8 +97,19 @@ func (s *MemoryStore) Increment(ctx context.Context, key string, window time.Dur
 	return e.count, nil
 }
 
-// TakeToken implements the token bucket logic atomically for the in-memory store.
-// It returns true if a token was taken, the number of remaining tokens, and an error.
+// TakeToken atomically consumes a token from the token bucket for the given key.
+//
+// Returns:
+//   - allowed: true if a token was successfully taken
+//   - remaining: number of tokens remaining in the bucket
+//   - error: always nil for MemoryStore
+//
+// rate: refill rate per second
+// burst: maximum number of tokens
+//
+// Example:
+//
+//	allowed, remaining, _ := store.TakeToken(ctx, "user:123", 1.0, 5)
 func (s *MemoryStore) TakeToken(ctx context.Context, key string, rate float64, burst int64) (bool, float64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -77,7 +118,6 @@ func (s *MemoryStore) TakeToken(ctx context.Context, key string, rate float64, b
 	now := time.Now()
 
 	if !found {
-		// First request, start with a full bucket minus one token.
 		remaining := float64(burst) - 1
 		entry = tokenBucketEntry{
 			tokens:      remaining,
@@ -87,18 +127,15 @@ func (s *MemoryStore) TakeToken(ctx context.Context, key string, rate float64, b
 		return true, remaining, nil
 	}
 
-	// Refill tokens based on elapsed time.
 	elapsed := now.Sub(entry.lastUpdated).Seconds()
 	if elapsed > 0 {
-		newTokens := elapsed * rate
-		entry.tokens += newTokens
+		entry.tokens += elapsed * rate
 	}
 
 	if entry.tokens > float64(burst) {
 		entry.tokens = float64(burst)
 	}
 
-	// Check if a token is available.
 	if entry.tokens >= 1 {
 		entry.tokens--
 		entry.lastUpdated = now
@@ -106,19 +143,18 @@ func (s *MemoryStore) TakeToken(ctx context.Context, key string, rate float64, b
 		return true, entry.tokens, nil
 	}
 
-	// No token available.
 	entry.lastUpdated = now
 	s.tokenBucketEntries[key] = entry
 	return false, entry.tokens, nil
 }
 
-// runCleanup periodically removes expired entries for both algorithms.
+// runCleanup periodically removes expired or stale entries for both fixed window and token bucket.
+//
+// Entries are considered stale if they haven't been updated for 10 times the cleanup interval.
 func (s *MemoryStore) runCleanup(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// A stale entry is one that hasn't been touched for a long time.
-	// We use a multiple of the cleanup interval as a threshold.
 	staleThreshold := interval * 10
 
 	for {

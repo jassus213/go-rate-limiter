@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	ratelimiter "github.com/jassus213/go-rate-limitter"
 	ginMiddleware "github.com/jassus213/go-rate-limitter/middleware/gin"
+	"github.com/jassus213/go-rate-limitter/ratelimiter"
 	"github.com/jassus213/go-rate-limitter/store"
 
 	"github.com/gin-gonic/gin"
